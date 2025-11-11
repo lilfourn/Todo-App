@@ -1,0 +1,58 @@
+{
+  "productName": "Todo App",
+  "version": "1.0.0",
+  "identifier": "com.codebyfourn.todoapp",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Todo",
+        "width": 500,
+        "height": 700,
+        "minWidth": 400,
+        "minHeight": 500,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": true,
+        "center": true,
+        "resizable": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "acceptFirstMouse": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "copyright": "Copyright © 2025 codebyfourn. All rights reserved.",
+    "shortDescription": "This is literally the most simple todo app possible",
+    "longDescription": "This is literally the most simple todo app possible, yet I like that it is all I need to track tasks on a daily basis. No bull s***",
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["todoapp"]
+      }
+    }
+  }
+}
