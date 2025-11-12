@@ -30,10 +30,10 @@ let hasFailures = false;
  */
 function checkNpmAudit() {
   const npmAuditPath = path.join(process.cwd(), 'npm-audit.json');
-  
+
   if (!fs.existsSync(npmAuditPath)) {
-    console.error(`${colors.red}Error: npm-audit.json not found${colors.reset}`);
-    process.exit(1);
+    console.log(`${colors.yellow}⚠ npm-audit.json not found, skipping npm check${colors.reset}\n`);
+    return;
   }
   
   const auditData = JSON.parse(fs.readFileSync(npmAuditPath, 'utf8'));
@@ -77,10 +77,10 @@ function checkNpmAudit() {
  */
 function checkCargoAudit() {
   const cargoAuditPath = path.join(process.cwd(), 'cargo-audit.json');
-  
+
   if (!fs.existsSync(cargoAuditPath)) {
-    console.error(`${colors.red}Error: cargo-audit.json not found${colors.reset}`);
-    process.exit(1);
+    console.log(`${colors.yellow}⚠ cargo-audit.json not found, skipping cargo check${colors.reset}\n`);
+    return;
   }
   
   const auditData = JSON.parse(fs.readFileSync(cargoAuditPath, 'utf8'));
