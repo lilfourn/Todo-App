@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { generateStateToken, storeStateToken } from '../lib/security';
+import { logger, getUserFriendlyMessage } from '../lib/logger';
 import './Preferences.css';
 
 interface PreferencesProps {
@@ -28,7 +30,7 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
 
         if (error && error.code !== 'PGRST116') {
           // PGRST116 = no rows returned, which is fine for new users
-          console.error('Error loading preferences:', error);
+          logger.error(error, { context: 'load_preferences_component' });
           return;
         }
 
@@ -43,7 +45,7 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
           }
         }
       } catch (error) {
-        console.error('Failed to load preferences:', error);
+        logger.error(error, { context: 'load_preferences_failed' });
       }
     };
 
@@ -52,18 +54,29 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
 
   const handleResetPassword = async () => {
     try {
+      // Generate and store CSRF state token
+      const stateToken = generateStateToken();
+      storeStateToken(stateToken);
+
+      // Use Tauri deep link protocol for password reset redirect
+      // NOTE: This URL must be added to Supabase Dashboard > Authentication > URL Configuration > Additional Redirect URLs
       const { error } = await supabase.auth.resetPasswordForEmail(
         user?.email || '',
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `todoapp://auth/password-reset?state=${stateToken}`,
         }
       );
       
-      if (error) throw error;
+      if (error) {
+        logger.error(error, { context: 'reset_password_email' });
+        throw error;
+      }
+      
       setResetPasswordSent(true);
-      setTimeout(() => setResetPasswordSent(false), 3000);
+      setTimeout(() => setResetPasswordSent(false), 5000);
     } catch (error) {
-      console.error('Error sending reset password email:', error);
+      logger.error(error, { context: 'reset_password_email_catch' });
+      alert(getUserFriendlyMessage(error));
     }
   };
 
@@ -73,18 +86,20 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
       return;
     }
 
+    if (!user) return;
+
     try {
       // Delete all user's tasks first
       await supabase
         .from('tasks')
         .delete()
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       // Sign out (account deletion would need backend implementation)
       await signOut();
       onClose();
     } catch (error) {
-      console.error('Error deleting account:', error);
+      logger.error(error, { context: 'delete_account' });
     }
   };
 
@@ -109,7 +124,7 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Failed to save theme preference:', error);
+      logger.error(error, { context: 'save_theme' });
     }
   };
 
@@ -134,7 +149,7 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Failed to save font preference:', error);
+      logger.error(error, { context: 'save_font' });
     }
   };
 
@@ -226,7 +241,9 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
                 Reset Password
               </button>
               {resetPasswordSent && (
-                <div className="success-message">Password reset email sent!</div>
+                <div className="success-message">
+                  Password reset email sent! Click the link in your email to reset your password.
+                </div>
               )}
             </div>
 

@@ -31,18 +31,50 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' asset: customprotocol:",
+        "script-src": "'self'",
+        "style-src": "'self'",
+        "img-src": "'self' asset: data: blob:",
+        "connect-src": "ipc: http://ipc.localhost https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in",
+        "frame-src": "'none'",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'self'",
+        "worker-src": "'self' blob:"
+      },
+      "devCsp": {
+        "default-src": "'self' asset: customprotocol:",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' asset: data: blob:",
+        "connect-src": "ipc: http://ipc.localhost https://*.supabase.co wss://*.supabase.co https://*.supabase.in wss://*.supabase.in http://localhost:5173 ws://localhost:5173",
+        "frame-src": "'none'",
+        "object-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'self'",
+        "worker-src": "'self' blob:"
+      },
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "X-Content-Type-Options": "nosniff",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+        "Timing-Allow-Origin": []
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "app"],
     "icon": [
       "icons/icon.png"
     ],
     "copyright": "Copyright © 2025 codebyfourn. All rights reserved.",
-    "shortDescription": "This is literally the most simple todo app possible",
-    "longDescription": "This is literally the most simple todo app possible, yet I like that it is all I need to track tasks on a daily basis. No bull s***",
+    "category": "Productivity",
+    "shortDescription": "No B.S. todo app - completely free",
+    "longDescription": "No B.S. todo app and this is all you need to manage daily tasks. Completely free and no, I will not sell your data. This is just a project I made to hopefully be hired somewhere :) Contact: lukefournierdev@gmail.com | GitHub: github.com/lilfourn",
     "macOS": {
       "minimumSystemVersion": "10.13"
     }

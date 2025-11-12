@@ -33,5 +33,10 @@ __pycache__/
 create_icon.py
 
 # Environment variables
+# Never commit environment files containing secrets
+# Use .env.example as a template for required variables
 .env
 .env.local
+.env.*.local
+.env.production
+.env.development

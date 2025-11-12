@@ -1,0 +1,60 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create mock .env for CI
+        run: |
+          cat > .env << EOF
+          VITE_SUPABASE_URL=https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxOTU3MzQ1MjAwfQ.example
+          EOF
+
+      - name: Run environment validation
+        run: npm run validate-env
+
+      - name: Run secret leak check
+        run: npm run check-secrets
+
+      - name: Run build verification
+        run: npm run build:check
+
+      - name: Verify .gitignore contains .env
+        run: |
+          if ! grep -q "^\.env$" .gitignore; then
+            echo "Error: .env not found in .gitignore"
+            exit 1
+          fi
+          echo "✅ .env properly gitignored"
+
+      - name: Check for external resources without SRI
+        run: |
+          # Check for external script or link tags without integrity attribute
+          if grep -E '<(script|link)[^>]*(https?://|//)[^>]*>' index.html | grep -v 'integrity='; then
+            echo "Error: External CDN resources found without integrity attribute"
+            echo "Please add integrity attribute or enable vite-plugin-sri3"
+            exit 1
+          fi
+          echo "✅ No external resources without SRI found"

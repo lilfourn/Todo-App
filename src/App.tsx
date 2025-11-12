@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { supabase } from './lib/supabase';
 import { useAuth } from './contexts/AuthContext';
 import Preferences from './components/Preferences';
+import { logger } from './lib/logger';
 import './styles.css';
+
+// Allowed event names for IPC validation
+const ALLOWED_EVENTS = ['sign-out-user', 'navigate-to-preferences'] as const;
+
+// Validates that an event name is in the allowlist
+const isValidEvent = (eventName: string): boolean => {
+  return ALLOWED_EVENTS.includes(eventName as any);
+};
 
 interface Task {
   id: string;
@@ -19,6 +28,15 @@ interface CompletedTaskHistory {
   completedAt: number;
 }
 
+// Event payload type definitions for type safety
+interface SignOutEvent {
+  // Currently empty, but typed for future use
+}
+
+interface NavigateToPreferencesEvent {
+  // Currently empty, but typed for future use
+}
+
 const App: React.FC = () => {
   const { user, signOut } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -28,6 +46,23 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<CompletedTaskHistory[]>([]);
   const [showPreferences, setShowPreferences] = useState(false);
   const maxHistorySize = 10;
+  
+  // Rate limiting for IPC events
+  const lastEventTime = useRef<Record<string, number>>({});
+  
+  // Store unlisten functions in refs to prevent re-registration
+  const signOutUnlistenRef = useRef<(() => void) | null>(null);
+  const prefsUnlistenRef = useRef<(() => void) | null>(null);
+  
+  // Stable wrappers for actions to avoid effect dependencies
+  const signOutRef = useRef(signOut);
+  const setShowPreferencesRef = useRef(setShowPreferences);
+  
+  // Keep refs updated
+  useEffect(() => {
+    signOutRef.current = signOut;
+    setShowPreferencesRef.current = setShowPreferences;
+  }, [signOut, setShowPreferences]);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
@@ -53,7 +88,7 @@ const App: React.FC = () => {
         setTasks(mappedTasks);
       }
     } catch (error) {
-      console.error('Failed to load tasks:', error);
+      logger.error(error, { context: 'load_tasks' });
       setTasks([]);
     }
   }, [user]);
@@ -71,7 +106,7 @@ const App: React.FC = () => {
       // Reload tasks to reflect changes
       await loadTasks();
     } catch (error) {
-      console.error('Failed to cleanup tasks:', error);
+      logger.error(error, { context: 'cleanup_tasks' });
     }
   }, [user, loadTasks]);
 
@@ -92,7 +127,7 @@ const App: React.FC = () => {
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          console.error('Error loading preferences:', error);
+          logger.error(error, { context: 'load_preferences' });
           return;
         }
 
@@ -105,7 +140,7 @@ const App: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to load user preferences:', error);
+        logger.error(error, { context: 'load_user_preferences' });
       }
     };
 
@@ -120,35 +155,80 @@ const App: React.FC = () => {
   }, [runCleanup]);
 
   useEffect(() => {
-    // Listen for menu events from macOS menubar
-    let unlistenSignOut: (() => void) | undefined;
-    let unlistenPreferences: (() => void) | undefined;
+    // Listen for menu events from macOS menubar with validation
+    // Run once on mount with empty dependency array to prevent re-registration
+    logger.debug('Setting up menu listeners');
     
-    console.log('Setting up menu listeners...');
-    
-    // Sign out listener
-    listen('sign-out-user', () => {
-      console.log('Sign out event received!');
-      signOut();
-    }).then((unlistenFn) => {
-      unlistenSignOut = unlistenFn;
-    });
+    (async () => {
+      try {
+        // Sign out listener with validation and rate limiting
+        const unlistenSignOut = await listen<SignOutEvent>('sign-out-user', () => {
+          try {
+            // Layer 2: Validate event name
+            if (!isValidEvent('sign-out-user')) {
+              logger.warn('Invalid event name rejected', { event: 'sign-out-user' });
+              return;
+            }
+            
+            // Layer 4: Rate limiting (max once per second)
+            const now = Date.now();
+            const lastTime = lastEventTime.current['sign-out-user'] || 0;
+            if (now - lastTime < 1000) {
+              logger.warn('Sign-out event rate limited', { timeSinceLastEvent: now - lastTime });
+              return;
+            }
+            lastEventTime.current['sign-out-user'] = now;
+            
+            logger.debug('Sign out event received');
+            logger.info('Sign out event received', { source: 'menu' });
+            signOutRef.current();
+          } catch (error) {
+            logger.error(error, { context: 'sign_out_event_handler' });
+          }
+        });
+        signOutUnlistenRef.current = unlistenSignOut;
 
-    // Preferences listener
-    listen('navigate-to-preferences', () => {
-      console.log('Preferences event received!');
-      setShowPreferences(true);
-    }).then((unlistenFn) => {
-      unlistenPreferences = unlistenFn;
-    });
+        // Preferences listener with validation and rate limiting
+        const unlistenPreferences = await listen<NavigateToPreferencesEvent>('navigate-to-preferences', () => {
+          try {
+            // Layer 2: Validate event name
+            if (!isValidEvent('navigate-to-preferences')) {
+              logger.warn('Invalid event name rejected', { event: 'navigate-to-preferences' });
+              return;
+            }
+            
+            // Layer 4: Rate limiting (max once per second)
+            const now = Date.now();
+            const lastTime = lastEventTime.current['navigate-to-preferences'] || 0;
+            if (now - lastTime < 1000) {
+              logger.warn('Preferences event rate limited', { timeSinceLastEvent: now - lastTime });
+              return;
+            }
+            lastEventTime.current['navigate-to-preferences'] = now;
+            
+            logger.debug('Preferences event received');
+            setShowPreferencesRef.current(true);
+          } catch (error) {
+            logger.error(error, { context: 'preferences_event_handler' });
+          }
+        });
+        prefsUnlistenRef.current = unlistenPreferences;
 
-    console.log('Menu listeners set up successfully!');
+        logger.debug('Menu listeners set up successfully');
+      } catch (error) {
+        logger.error(error, { context: 'setup_event_listeners' });
+      }
+    })();
 
     return () => {
-      if (unlistenSignOut) unlistenSignOut();
-      if (unlistenPreferences) unlistenPreferences();
+      try {
+        if (signOutUnlistenRef.current) signOutUnlistenRef.current();
+        if (prefsUnlistenRef.current) prefsUnlistenRef.current();
+      } catch (error) {
+        logger.error(error, { context: 'cleanup_event_listeners' });
+      }
     };
-  }, [signOut]);
+  }, []); // Empty dependency array - run once on mount
 
   const addTask = useCallback(async () => {
     if (!user || !newTaskName.trim()) return;
@@ -178,7 +258,7 @@ const App: React.FC = () => {
       setNewTaskName('');
       setShowInput(false);
     } catch (error) {
-      console.error('Failed to add task:', error);
+      logger.error(error, { context: 'add_task' });
     }
   }, [newTaskName, tasks, user]);
 
@@ -216,7 +296,7 @@ const App: React.FC = () => {
       const updatedTasks = tasks.filter(t => t.id !== taskId);
       setTasks(updatedTasks);
     } catch (error) {
-      console.error('Failed to complete task:', error);
+      logger.error(error, { context: 'complete_task' });
     }
   }, [tasks, history, user]);
 
@@ -251,7 +331,7 @@ const App: React.FC = () => {
       const updatedHistory = history.slice(1);
       setHistory(updatedHistory);
     } catch (error) {
-      console.error('Failed to undo completion:', error);
+      logger.error(error, { context: 'undo_completion' });
     }
   }, [history, tasks, user]);
 

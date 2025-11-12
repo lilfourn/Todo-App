@@ -1,0 +1,55 @@
+-- ============================================================================
+-- Drop Conflicting UNIQUE Constraint Migration
+-- ============================================================================
+-- Created: 2025-01-01
+-- Purpose: Drop the unique_active_task_name constraint from tasks table.
+--          This constraint conflicts with the partial unique index and prevents
+--          duplicate task names even after soft-delete.
+--
+-- Background:
+-- - The original schema included CONSTRAINT unique_active_task_name UNIQUE (user_id, name)
+-- - This constraint applies to ALL rows (including soft-deleted ones)
+-- - The partial unique index idx_tasks_unique_active_name only applies to active rows
+-- - The constraint prevents reusing task names after soft-delete, which is not desired
+--
+-- Solution:
+-- - Drop the table constraint
+-- - Keep the partial unique index (enforces uniqueness only for active tasks)
+-- ============================================================================
+
+-- Drop the conflicting UNIQUE constraint if it exists
+-- This allows duplicate task names as long as at least one is soft-deleted
+ALTER TABLE tasks DROP CONSTRAINT IF EXISTS unique_active_task_name;
+
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
+-- After applying this migration, verify:
+-- 1. The constraint is dropped: 
+--    SELECT conname FROM pg_constraint WHERE conrelid = 'tasks'::regclass;
+--    (should NOT show unique_active_task_name)
+--
+-- 2. The partial unique index still exists:
+--    SELECT indexname FROM pg_indexes WHERE tablename = 'tasks';
+--    (should show idx_tasks_unique_active_name)
+--
+-- 3. Test duplicate names with soft-delete:
+--    INSERT INTO tasks (user_id, name) VALUES (auth.uid(), 'Test Task');
+--    UPDATE tasks SET deleted_at = now() WHERE name = 'Test Task';
+--    INSERT INTO tasks (user_id, name) VALUES (auth.uid(), 'Test Task');
+--    (should succeed - allows duplicate name after soft-delete)
+--
+-- 4. Test duplicate names without soft-delete:
+--    INSERT INTO tasks (user_id, name) VALUES (auth.uid(), 'Active Task');
+--    INSERT INTO tasks (user_id, name) VALUES (auth.uid(), 'Active Task');
+--    (should fail - partial unique index prevents duplicate active names)
+-- ============================================================================
+
+-- ============================================================================
+-- MIGRATION COMPLETE
+-- ============================================================================
+-- Next steps:
+-- 1. Verify the constraint is dropped (see verification queries above)
+-- 2. Test that duplicate names are allowed after soft-delete
+-- 3. Test that duplicate active names are still prevented by the partial index
+-- ============================================================================

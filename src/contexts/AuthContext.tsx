@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { 
+  RateLimiter, 
+  generateStateToken,
+  storeStateToken,
+  formatTimeRemaining
+} from '../lib/security';
+import { logger } from '../lib/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -9,9 +16,13 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null; message?: string }>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null; message?: string; needsEmailConfirmation?: boolean }>;
   signOut: () => Promise<void>;
+  remainingAuthAttempts: (email: string) => number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Initialize rate limiter at module level
+const rateLimiter = new RateLimiter();
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -39,10 +50,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    // Check rate limit before attempting sign in
+    const { allowed, retryAfter } = rateLimiter.checkLimit(email);
+    if (!allowed) {
+      const timeRemaining = retryAfter ? formatTimeRemaining(retryAfter) : '30 minutes';
+      return {
+        error: new Error('Too many attempts') as AuthError,
+        message: `Too many login attempts. Please try again in ${timeRemaining}.`
+      };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Record attempt result
+    rateLimiter.recordAttempt(email, !error);
+
+    // Log error if sign in failed
+    if (error) {
+      logger.error(error, { context: 'sign_in', email, rateLimited: !allowed });
+    }
 
     // Check if error is due to unconfirmed email
     if (error) {
@@ -65,13 +94,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string) => {
+    // Check rate limit before attempting sign up
+    const { allowed, retryAfter } = rateLimiter.checkLimit(email);
+    if (!allowed) {
+      const timeRemaining = retryAfter ? formatTimeRemaining(retryAfter) : '30 minutes';
+      return {
+        error: new Error('Too many attempts') as AuthError,
+        message: `Too many sign up attempts. Please try again in ${timeRemaining}.`
+      };
+    }
+
+    // Generate and store CSRF state token
+    const stateToken = generateStateToken();
+    storeStateToken(stateToken);
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: 'todoapp://auth/callback',
+        emailRedirectTo: `todoapp://auth/callback?state=${stateToken}`,
       }
     });
+
+    // Record attempt result
+    rateLimiter.recordAttempt(email, !error);
+
+    // Log error if sign up failed
+    if (error) {
+      logger.error(error, { context: 'sign_up', email, rateLimited: !allowed });
+    }
 
     if (error) {
       // Check for specific error types
@@ -101,6 +152,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
   };
 
+  const remainingAuthAttempts = (email: string): number => {
+    return rateLimiter.getRemainingAttempts(email);
+  };
+
   const value = {
     user,
     session,
@@ -108,6 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
+    remainingAuthAttempts,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

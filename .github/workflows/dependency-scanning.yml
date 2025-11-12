@@ -1,0 +1,120 @@
+name: Dependency Security Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Run weekly on Mondays at 06:00 UTC
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  npm-audit:
+    name: npm Dependency Audit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (production dependencies only)
+        run: npm run audit:npm:prod:json
+        continue-on-error: true
+
+      - name: Upload npm audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-results
+          path: npm-audit.json
+          retention-days: 30
+
+      - name: Check for high/critical vulnerabilities
+        run: node scripts/check-audit-thresholds.cjs
+
+  cargo-audit:
+    name: Cargo Dependency Audit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Ensure Cargo.lock exists
+        run: |
+          cd src-tauri
+          if [ ! -f Cargo.lock ]; then
+            cargo generate-lockfile
+          fi
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Run cargo audit
+        run: npm run audit:cargo:json
+        continue-on-error: true
+
+      - name: Upload cargo audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-audit-results
+          path: cargo-audit.json
+          retention-days: 30
+
+      - name: Check for vulnerabilities
+        run: node scripts/check-audit-thresholds.cjs
+
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-24.04
+    needs: [npm-audit, cargo-audit]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          scanners: 'vuln'
+          format: 'sarif'
+          output: 'trivy-deps.sarif'
+          severity: 'HIGH,CRITICAL'
+          limit-severities-for-sarif: true
+          ignore-unfixed: true
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-deps.sarif'
+          category: 'dependency-scanning-trivy'
+
+  dependency-review:
+    name: Dependency Review (PR only)
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

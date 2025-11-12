@@ -8,7 +8,9 @@ export const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const { signIn, signUp, remainingAuthAttempts } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,21 +30,51 @@ export const Auth: React.FC = () => {
       return;
     }
 
+    // Check rate limit before attempting
+    const remaining = remainingAuthAttempts(email);
+    setRemainingAttempts(remaining);
+    
+    if (remaining === 0) {
+      setIsRateLimited(true);
+      setError('Too many failed attempts. Please try again later.');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignUp) {
         const { error, message, needsEmailConfirmation } = await signUp(email, password);
         if (error) {
+          // Check if rate limited
+          if (message?.includes('Too many')) {
+            setIsRateLimited(true);
+          }
           // Use custom message if available, otherwise use error message
           setError(message || error.message);
+          // Update remaining attempts after failed attempt
+          setRemainingAttempts(remainingAuthAttempts(email));
         } else if (needsEmailConfirmation) {
           // Show success message for email confirmation
           setError(message || 'Check your email for the confirmation link.');
+          // Clear rate limit state on success
+          setIsRateLimited(false);
+          setRemainingAttempts(null);
         }
       } else {
         const { error, message } = await signIn(email, password);
         if (error) {
+          // Check if rate limited
+          if (message?.includes('Too many')) {
+            setIsRateLimited(true);
+          }
           // Use custom message if available, otherwise use error message
           setError(message || error.message);
+          // Update remaining attempts after failed attempt
+          setRemainingAttempts(remainingAuthAttempts(email));
+        } else {
+          // Clear rate limit state on success
+          setIsRateLimited(false);
+          setRemainingAttempts(null);
         }
       }
     } catch (err) {
@@ -89,15 +121,20 @@ export const Auth: React.FC = () => {
           {error && (
             <div className={`auth-message ${error.includes('Check your email') ? 'success' : 'error'}`}>
               {error}
+              {remainingAttempts !== null && remainingAttempts > 0 && remainingAttempts <= 2 && !isRateLimited && (
+                <div style={{ marginTop: '8px', fontSize: '13px', opacity: 0.9 }}>
+                  ⚠️ Warning: {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining before temporary lockout
+                </div>
+              )}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isRateLimited}
             className="auth-button"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {isRateLimited ? 'Rate Limited' : loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
         </form>
 
@@ -105,6 +142,8 @@ export const Auth: React.FC = () => {
           onClick={() => {
             setIsSignUp(!isSignUp);
             setError(null);
+            setIsRateLimited(false);
+            setRemainingAttempts(null);
           }}
           className="auth-toggle"
         >
