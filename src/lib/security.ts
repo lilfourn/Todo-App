@@ -38,20 +38,53 @@ const STATE_TOKEN_TIMESTAMP_KEY = 'auth_state_timestamp';
 // Deep Link URL Validation
 // ============================================================================
 
+/**
+ * Reason codes for deep link validation failures
+ * Use these codes for logging and error tracking instead of free-form strings
+ */
+export const DeepLinkReasonCode = {
+  VALID: 'VALID',
+  URL_TOO_LONG: 'URL_TOO_LONG',
+  INVALID_URL_FORMAT: 'INVALID_URL_FORMAT',
+  INVALID_SCHEME: 'INVALID_SCHEME',
+  INVALID_HOST: 'INVALID_HOST',
+  INVALID_PATH: 'INVALID_PATH',
+  INVALID_QUERY_PARAM: 'INVALID_QUERY_PARAM',
+  DUPLICATE_PARAM: 'DUPLICATE_PARAM',
+  FRAGMENT_NOT_ALLOWED: 'FRAGMENT_NOT_ALLOWED',
+  INVALID_TYPE_PARAM: 'INVALID_TYPE_PARAM',
+  MISSING_STATE_TOKEN: 'MISSING_STATE_TOKEN',
+  INVALID_STATE_TOKEN: 'INVALID_STATE_TOKEN',
+} as const;
+
+export type DeepLinkReasonCode = typeof DeepLinkReasonCode[keyof typeof DeepLinkReasonCode];
+
 export interface DeepLinkValidationResult {
   isValid: boolean;
-  reason?: string;
+  code: DeepLinkReasonCode;
+  details?: string; // Only include sensitive details (host/path) in development
 }
 
 /**
  * Validates incoming deep link URLs against strict security criteria
+ * Returns structured validation result with reason code for secure logging
+ * 
+ * @param urlString - The deep link URL to validate
+ * @param context - Optional context (path) for additional validation rules
+ * @returns Validation result with code and optional details
  */
-export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult {
+export function validateDeepLinkUrl(
+  urlString: string,
+  context?: { path?: string }
+): DeepLinkValidationResult {
+  const isDevelopment = import.meta.env.MODE === 'development';
+
   // Check URL length
   if (urlString.length > MAX_URL_LENGTH) {
     return {
       isValid: false,
-      reason: `URL exceeds maximum length of ${MAX_URL_LENGTH} characters`,
+      code: DeepLinkReasonCode.URL_TOO_LONG,
+      details: isDevelopment ? `Length: ${urlString.length}/${MAX_URL_LENGTH}` : undefined,
     };
   }
 
@@ -62,7 +95,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
   } catch (error) {
     return {
       isValid: false,
-      reason: 'Invalid URL format',
+      code: DeepLinkReasonCode.INVALID_URL_FORMAT,
+      details: isDevelopment ? String(error) : undefined,
     };
   }
 
@@ -70,7 +104,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
   if (url.protocol.toLowerCase() !== 'todoapp:') {
     return {
       isValid: false,
-      reason: `Invalid scheme: ${url.protocol}. Expected: todoapp:`,
+      code: DeepLinkReasonCode.INVALID_SCHEME,
+      details: isDevelopment ? `Scheme: ${url.protocol}` : undefined,
     };
   }
 
@@ -78,7 +113,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
   if (url.host !== 'auth') {
     return {
       isValid: false,
-      reason: `Invalid host: ${url.host}. Expected: auth`,
+      code: DeepLinkReasonCode.INVALID_HOST,
+      details: isDevelopment ? `Host: ${url.host}` : undefined,
     };
   }
 
@@ -87,7 +123,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
   if (!ALLOWED_DEEP_LINK_PATHS.includes(path)) {
     return {
       isValid: false,
-      reason: `Path not allowed: ${path}. Allowed paths: ${ALLOWED_DEEP_LINK_PATHS.join(', ')}`,
+      code: DeepLinkReasonCode.INVALID_PATH,
+      details: isDevelopment ? `Path: ${path}` : undefined,
     };
   }
 
@@ -97,7 +134,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
     if (!ALLOWED_QUERY_PARAMS.includes(param)) {
       return {
         isValid: false,
-        reason: `Query parameter not allowed: ${param}. Allowed: ${ALLOWED_QUERY_PARAMS.join(', ')}`,
+        code: DeepLinkReasonCode.INVALID_QUERY_PARAM,
+        details: isDevelopment ? `Param: ${param}` : undefined,
       };
     }
 
@@ -106,7 +144,8 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
     if (values.length > 1) {
       return {
         isValid: false,
-        reason: `Duplicate query parameter: ${param}`,
+        code: DeepLinkReasonCode.DUPLICATE_PARAM,
+        details: isDevelopment ? `Param: ${param}` : undefined,
       };
     }
   }
@@ -115,11 +154,24 @@ export function validateDeepLinkUrl(urlString: string): DeepLinkValidationResult
   if (url.hash) {
     return {
       isValid: false,
-      reason: 'URL fragments are not allowed',
+      code: DeepLinkReasonCode.FRAGMENT_NOT_ALLOWED,
+      details: isDevelopment ? `Fragment: ${url.hash}` : undefined,
     };
   }
 
-  return { isValid: true };
+  // Context-specific validation: password-reset requires type=recovery
+  if (context?.path === '/password-reset' || path === '/password-reset') {
+    const type = url.searchParams.get('type');
+    if (type && type !== 'recovery') {
+      return {
+        isValid: false,
+        code: DeepLinkReasonCode.INVALID_TYPE_PARAM,
+        details: isDevelopment ? `Type: ${type}, expected: recovery` : undefined,
+      };
+    }
+  }
+
+  return { isValid: true, code: DeepLinkReasonCode.VALID };
 }
 
 /**

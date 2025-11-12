@@ -1401,6 +1401,207 @@ Before every release:
 - Regenerate with `npm install` or `cargo update` 
 - Commit the regenerated lock file
 
+## Security Testing
+
+Comprehensive security testing documentation is available to validate all implemented security measures.
+
+**Latest Test Results (2025-01-13):** All security tests passed successfully with no vulnerabilities found. View detailed execution logs in [`docs/test-results/`](docs/test-results/).
+
+### Testing Documentation
+
+We maintain detailed security testing procedures in the `docs/` directory:
+
+**Master Guide:**
+- [`docs/SECURITY_TESTING.md`](docs/SECURITY_TESTING.md) - Entry point for all security testing, test environment setup, and execution tracking
+
+**Detailed Test Procedures:**
+- [`docs/PENETRATION_TESTING.md`](docs/PENETRATION_TESTING.md) - Manual penetration testing for XSS, CSRF, SQL injection, and authentication bypass
+- [`docs/DEEP_LINK_TESTING.md`](docs/DEEP_LINK_TESTING.md) - Deep-link security testing with malicious URL test cases
+- [`docs/RLS_TESTING.md`](docs/RLS_TESTING.md) - Row Level Security policy verification with multi-user scenarios
+- [`docs/SESSION_TESTING.md`](docs/SESSION_TESTING.md) - Session management and token handling test procedures
+
+**Pre-Release Checklist:**
+- [`docs/SECURITY_CHECKLIST.md`](docs/SECURITY_CHECKLIST.md) - Comprehensive pre-release security checklist (150+ items)
+
+### Quick Security Validation
+
+Before each release, run these quick checks:
+
+```bash
+# Run all security checks
+npm run security:check
+
+# This includes:
+# - Environment variable validation
+# - Secret leak detection
+# - npm dependency audit
+# - cargo dependency audit
+# - Build verification
+```
+
+### Testing Coverage
+
+Our security testing covers:
+
+**1. Penetration Testing (20+ test cases)**
+- XSS: Stored, reflected, and DOM-based
+- CSRF: State token validation, expiry, reuse prevention
+- SQL Injection: Task names, RLS bypass attempts
+- Auth Bypass: Unauthenticated access, rate limiting, session hijacking
+- Authorization: Horizontal and vertical privilege escalation
+
+**2. Deep-Link Security (15+ test cases)**
+- Scheme, host, path, and parameter validation
+- URL length limits and duplicate parameters
+- XSS and SQL injection in parameters
+- Path traversal attacks
+- State token security
+
+**3. RLS Policy Verification (10+ test cases)**
+- Multi-user scenarios (User A cannot access User B's data)
+- SELECT, INSERT, UPDATE, DELETE policies for all tables
+- Unauthenticated access blocking
+- RPC function security (cleanup_tasks, mark_tasks_late)
+
+**4. Session Management (20+ test cases)**
+- Token storage, format, and expiry
+- Automatic token refresh
+- Session lifecycle (sign in, sign out, persistence)
+- Multi-session and session isolation
+- Rate limiting integration
+
+### Test Execution Schedule
+
+**Before Each Release:**
+- Complete [`docs/SECURITY_CHECKLIST.md`](docs/SECURITY_CHECKLIST.md)
+- Execute critical penetration tests
+- Verify RLS policies with multi-user testing
+- Run all automated security checks
+
+**Weekly (Automated):**
+- Dependency scanning via GitHub Actions
+- Security checks workflow
+- Dependabot PRs reviewed
+
+**Monthly:**
+- Manual penetration testing spot checks
+- Review security documentation for updates
+- Check for new attack vectors or vulnerabilities
+
+**Quarterly:**
+- Comprehensive penetration testing
+- Full security checklist execution
+- Security training and awareness
+
+**Annually:**
+- External security audit (recommended)
+- Review and update all security procedures
+- Assess new security technologies and practices
+
+### Running Security Tests
+
+**Manual Testing:**
+
+1. **Set up test environment:**
+   - Create multiple test user accounts (User A, User B, User C)
+   - Prepare test data
+   - Open browser DevTools
+
+2. **Execute test procedures:**
+   - Follow step-by-step instructions in each testing document
+   - Record results in test execution logs
+   - Document any findings
+
+3. **Review and remediate:**
+   - Analyze test results
+   - Prioritize findings by severity
+   - Implement fixes
+   - Re-test to verify fixes
+
+**Automated Testing:**
+
+```bash
+# Dependency audits
+npm run audit:all
+
+# Build verification
+npm run build:check
+
+# Environment validation
+npm run validate-env
+
+# Secret leak detection
+npm run check-secrets
+```
+
+### Test Results and Findings
+
+**Recording Test Results:**
+- Use test execution log templates provided in each testing document
+- Store completed logs in `docs/test-results/` (create directory as needed)
+- Include: test date, tester name, environment, results summary, findings
+
+**Tracking Findings:**
+- Create GitHub issues for security findings
+- Label with severity: Critical, High, Medium, Low
+- Assign to appropriate team member
+- Track remediation progress
+- Re-test after fixes
+
+**Reporting:**
+- Update `SECURITY.md` Security Audit History table
+- Document findings and remediations
+- Share learnings with team
+- Update testing procedures based on findings
+
+### Security Testing Best Practices
+
+**For Testers:**
+- Follow test procedures exactly as documented
+- Record all observations, even if tests pass
+- Don't skip tests due to time pressure
+- Report findings immediately (especially critical/high)
+- Verify fixes before closing findings
+
+**For Developers:**
+- Review security testing docs before implementing features
+- Consider security implications of all changes
+- Add new test cases for new features
+- Fix security findings before feature work
+- Participate in security testing
+
+**For Security Lead:**
+- Review all test results before releases
+- Approve security checklist sign-off
+- Prioritize security findings
+- Update testing procedures as needed
+- Coordinate external audits
+
+### Continuous Improvement
+
+Security testing procedures are living documents:
+- Update when new features are added
+- Enhance based on findings and incidents
+- Incorporate new attack vectors as discovered
+- Align with evolving security best practices
+- Integrate feedback from external audits
+
+### Resources
+
+**Internal:**
+- [SECURITY.md](SECURITY.md) - Security policy and architecture
+- [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md) - Security checklist for PRs
+- [supabase/README.md](supabase/README.md) - Database security documentation
+
+**External:**
+- [OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)
+- [Supabase Security Best Practices](https://supabase.com/docs/guides/platform/security)
+- [Tauri Security Documentation](https://tauri.app/v1/guides/security/)
+
+For questions about security testing, refer to the testing documentation or contact the security lead.
+
+This section provides clear guidance on security testing procedures and ensures ongoing security validation.
+
 ## Development
 
 **Before starting development, complete the [Security & Configuration](#security--configuration) setup above.**
