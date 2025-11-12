@@ -91,6 +91,25 @@ jobs:
           cp "${TARBALL}.sig" "artifacts/${{ steps.target.outputs.arch }}.sig"
           cat "artifacts/${{ steps.target.outputs.arch }}.sig"
 
+      - name: Calculate SHA256 for DMG
+        id: sha256
+        run: |
+          TARGET="${{ steps.target.outputs.target }}"
+          DMG="src-tauri/target/${TARGET}/release/bundle/dmg/Todo App_*.dmg"
+          SHA=$(shasum -a 256 $DMG | cut -d ' ' -f 1)
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "SHA-256 for ${{ steps.target.outputs.arch }}: $SHA"
+
+          mkdir -p artifacts
+          echo "$SHA" > "artifacts/${{ steps.target.outputs.arch }}.sha256"
+
+      - name: Upload SHA256 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sha256-${{ steps.target.outputs.arch }}
+          path: artifacts/${{ steps.target.outputs.arch }}.sha256
+          retention-days: 1
+
       - name: Upload signature artifact
         uses: actions/upload-artifact@v4
         with:
@@ -151,3 +170,58 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           gh release upload "v${VERSION}" latest.json --clobber
+
+  generate-homebrew-cask:
+    needs: publish-tauri
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download ARM64 SHA256
+        uses: actions/download-artifact@v4
+        with:
+          name: sha256-aarch64
+          path: artifacts/
+
+      - name: Download x64 SHA256
+        uses: actions/download-artifact@v4
+        with:
+          name: sha256-x64
+          path: artifacts/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Get version from package.json
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Generate Homebrew Cask formula
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          SHA256_AARCH64=$(cat artifacts/aarch64.sha256)
+          SHA256_X64=$(cat artifacts/x64.sha256)
+
+          echo "Generating cask with:"
+          echo "  Version: $VERSION"
+          echo "  ARM64 SHA256: $SHA256_AARCH64"
+          echo "  x64 SHA256: $SHA256_X64"
+
+          sed "s/{{VERSION}}/$VERSION/g; s/{{SHA256_AARCH64}}/$SHA256_AARCH64/g; s/{{SHA256_X64}}/$SHA256_X64/g" \
+            todo-app.rb.template > todo-app.rb
+
+          echo "Generated cask formula:"
+          cat todo-app.rb
+
+      - name: Upload cask formula to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          gh release upload "v${VERSION}" todo-app.rb --clobber
