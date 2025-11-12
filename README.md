@@ -2,6 +2,13 @@
 
 Minimalist Tauri desktop todo app with local storage and smooth animations.
 
+## Installation
+
+```bash
+brew tap lilfourn/todoapp
+brew install --cask todo-app
+```
+
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
