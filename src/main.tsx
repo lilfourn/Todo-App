@@ -6,9 +6,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Auth } from './components/Auth'
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { supabase } from './lib/supabase'
-import { validateDeepLinkUrl, validateStateToken } from './lib/security'
+import { validateDeepLinkUrl, validateStateToken, DeepLinkReasonCode } from './lib/security'
 import ErrorBoundary from './components/ErrorBoundary'
 import { logger, getUserFriendlyMessage, initErrorTracking } from './lib/logger'
+import { checkForAppUpdates } from './lib/updater'
 
 // Initialize error tracking for production if DSN is provided
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -38,19 +39,29 @@ function AppWrapper() {
           // Validate deep link URL
           const validation = validateDeepLinkUrl(urlString);
           if (!validation.isValid) {
-            logger.error(new Error('Deep link validation failed'), { reason: validation.reason });
-            alert(`Security Error: Invalid deep link. ${validation.reason}`);
+            // Log only the code in production, include details in development
+            const logContext = import.meta.env.MODE === 'development' 
+              ? { code: validation.code, details: validation.details }
+              : { code: validation.code };
+            logger.error(new Error('Deep link validation failed'), logContext);
+            alert('Security Error: Invalid authentication link. Please request a new link.');
             return;
           }
 
           try {
             const urlObj = new URL(urlString);
             
-            // Extract and validate state token
+            // MANDATORY: Extract and validate state token for all auth callbacks
             const state = urlObj.searchParams.get('state');
-            if (state && !validateStateToken(state)) {
-              logger.error(new Error('State token validation failed'));
-              alert('Security Error: Invalid or expired authentication request.');
+            if (!state) {
+              logger.error(new Error('State token missing'), { code: DeepLinkReasonCode.MISSING_STATE_TOKEN });
+              alert('Security Error: Invalid authentication request. Please request a new link.');
+              return;
+            }
+            
+            if (!validateStateToken(state)) {
+              logger.error(new Error('State token validation failed'), { code: DeepLinkReasonCode.INVALID_STATE_TOKEN });
+              alert('Security Error: Invalid or expired authentication request. Please request a new link.');
               return;
             }
 
@@ -72,12 +83,22 @@ function AppWrapper() {
                 });
               }
             } else if (urlObj.host === 'auth' && urlObj.pathname === '/password-reset') {
-              // Password reset callback
-              const accessToken = urlObj.searchParams.get('access_token');
-              const refreshToken = urlObj.searchParams.get('refresh_token');
+              // Password reset callback - MUST have type=recovery
               const type = urlObj.searchParams.get('type');
               
-              if (type === 'recovery' && accessToken && refreshToken) {
+              if (type !== 'recovery') {
+                logger.error(new Error('Invalid type parameter for password reset'), { 
+                  code: DeepLinkReasonCode.INVALID_TYPE_PARAM,
+                  details: import.meta.env.MODE === 'development' ? `type=${type}` : undefined
+                });
+                alert('Security Error: Invalid password reset link. Please request a new link.');
+                return;
+              }
+              
+              const accessToken = urlObj.searchParams.get('access_token');
+              const refreshToken = urlObj.searchParams.get('refresh_token');
+              
+              if (accessToken && refreshToken) {
                 // Set session first
                 supabase.auth.setSession({
                   access_token: accessToken,
@@ -113,6 +134,11 @@ function AppWrapper() {
         unlistenFn();
       }
     };
+  }, []);
+
+  useEffect(() => {
+    // Check for updates on app startup (silent if no update available)
+    checkForAppUpdates(false);
   }, []);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
