@@ -1,0 +1,146 @@
+/* Loading Screen Container */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  transition: background-color 0.3s ease;
+}
+
+/* Theme-specific backgrounds */
+.loading-screen.light {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.loading-screen.dark {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+/* Main container matching app width */
+.loading-container {
+  width: 100%;
+  max-width: 500px;
+  padding: 40px 30px;
+}
+
+/* Header skeleton */
+.loading-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.skeleton-title {
+  height: 32px;
+  width: 120px;
+  margin: 0 auto;
+  border-radius: 8px;
+}
+
+/* Progress bar skeleton */
+.loading-progress {
+  margin-bottom: 40px;
+}
+
+.skeleton-progress-bar {
+  height: 8px;
+  width: 100%;
+  border-radius: 4px;
+}
+
+/* Task items skeleton */
+.loading-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loading-task-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  animation: pulseFade 2s ease-in-out infinite;
+}
+
+/* Light theme task items */
+.loading-screen.light .loading-task-item {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Dark theme task items */
+.loading-screen.dark .loading-task-item {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.skeleton-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-task-text {
+  height: 16px;
+  flex-grow: 1;
+  border-radius: 4px;
+  max-width: 70%;
+}
+
+/* Base skeleton styles */
+.skeleton {
+  animation: pulseFade 2s ease-in-out infinite;
+}
+
+/* Light theme skeleton colors */
+.loading-screen.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.12) 50%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+}
+
+/* Dark theme skeleton colors */
+.loading-screen.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+}
+
+/* Pulse fade animation */
+@keyframes pulseFade {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Staggered animation for task items */
+.loading-task-item:nth-child(1) { animation-delay: 0s; }
+.loading-task-item:nth-child(2) { animation-delay: 0.1s; }
+.loading-task-item:nth-child(3) { animation-delay: 0.2s; }
+.loading-task-item:nth-child(4) { animation-delay: 0.3s; }
+.loading-task-item:nth-child(5) { animation-delay: 0.4s; }
+
+/* Responsive adjustments */
+@media (max-width: 500px) {
+  .loading-container {
+    padding: 30px 20px;
+  }
+
+  .loading-task-item {
+    padding: 14px 16px;
+  }
+}

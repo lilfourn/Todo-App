@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Auth } from './components/Auth'
+import { LoadingScreen } from './components/LoadingScreen'
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link'
 import { supabase } from './lib/supabase'
 import { validateDeepLinkUrl, validateStateToken, DeepLinkReasonCode } from './lib/security'
@@ -164,17 +165,7 @@ function AppWrapper() {
   };
 
   if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }}>
-        <div style={{ color: 'white', fontSize: '18px' }}>Loading...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Show password reset UI if in password reset mode
