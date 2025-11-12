@@ -60,3 +60,65 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+      - name: Extract target architecture
+        id: target
+        run: |
+          if [[ "${{ matrix.args }}" == *"aarch64"* ]]; then
+            echo "arch=aarch64" >> $GITHUB_OUTPUT
+            echo "target=aarch64-apple-darwin" >> $GITHUB_OUTPUT
+          else
+            echo "arch=x64" >> $GITHUB_OUTPUT
+            echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload signature artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: signature-${{ steps.target.outputs.arch }}
+          path: src-tauri/target/${{ steps.target.outputs.target }}/release/bundle/macos/Todo App.app.tar.gz.sig
+          retention-days: 1
+
+  generate-updater-json:
+    needs: publish-tauri
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download ARM64 signature
+        uses: actions/download-artifact@v4
+        with:
+          name: signature-aarch64
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/macos/
+
+      - name: Download x64 signature
+        uses: actions/download-artifact@v4
+        with:
+          name: signature-x64
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/macos/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Get version from package.json
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Generate latest.json
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .github/scripts/generate-updater-json.mjs
+
+      - name: Upload latest.json to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          gh release upload "v${VERSION}" latest.json --clobber
