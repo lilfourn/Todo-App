@@ -154,9 +154,9 @@ fn main() {
                                     println!("Event rejected: window label is not 'main'");
                                     return;
                                 }
-                                window.emit("navigate-to-preferences", ()).unwrap_or_else(|e| {
+                                window.emit("navigate-to-preferences", ()).unwrap_or_else(|_e| {
                                     #[cfg(debug_assertions)]
-                                    eprintln!("Failed to emit navigate-to-preferences event: {:?}", e);
+                                    eprintln!("Failed to emit navigate-to-preferences event: {:?}", _e);
                                 });
                             }
                         }
@@ -171,9 +171,9 @@ fn main() {
                                     println!("Event rejected: window label is not 'main'");
                                     return;
                                 }
-                                window.emit("sign-out-user", ()).unwrap_or_else(|e| {
+                                window.emit("sign-out-user", ()).unwrap_or_else(|_e| {
                                     #[cfg(debug_assertions)]
-                                    eprintln!("Failed to emit sign-out-user event: {:?}", e);
+                                    eprintln!("Failed to emit sign-out-user event: {:?}", _e);
                                 });
                             }
                         }
