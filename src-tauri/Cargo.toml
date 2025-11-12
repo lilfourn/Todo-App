@@ -1,6 +1,6 @@
 [package]
 name = "todo-app"
-version = "1.0.0"
+version = "1.0.1"
 description = "A minimalist todo app with local storage"
 authors = ["You"]
 edition = "2021"

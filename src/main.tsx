@@ -9,7 +9,7 @@ import { supabase } from './lib/supabase'
 import { validateDeepLinkUrl, validateStateToken, DeepLinkReasonCode } from './lib/security'
 import ErrorBoundary from './components/ErrorBoundary'
 import { logger, getUserFriendlyMessage, initErrorTracking } from './lib/logger'
-import { checkForAppUpdates } from './lib/updater'
+import { useUpdater } from './hooks/useUpdater'
 
 // Initialize error tracking for production if DSN is provided
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -24,6 +24,13 @@ function AppWrapper() {
   const [passwordResetMode, setPasswordResetMode] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordResetError, setPasswordResetError] = useState('');
+
+  // Auto-check for updates on startup and periodically
+  useUpdater({
+    checkOnMount: true,
+    autoCheckInterval: 10 * 60 * 1000, // Check every 10 minutes
+    silentCheck: true
+  });
 
   useEffect(() => {
     // Set up deep link listener for email confirmation and password reset
@@ -134,11 +141,6 @@ function AppWrapper() {
         unlistenFn();
       }
     };
-  }, []);
-
-  useEffect(() => {
-    // Check for updates on app startup (silent if no update available)
-    checkForAppUpdates(false);
   }, []);
 
   const handlePasswordReset = async (e: React.FormEvent) => {

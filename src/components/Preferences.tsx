@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { generateStateToken, storeStateToken } from '../lib/security';
 import { logger, getUserFriendlyMessage } from '../lib/logger';
+import { UpdateButton } from './UpdateManager';
 import './Preferences.css';
 
 interface PreferencesProps {
@@ -220,6 +221,15 @@ const Preferences: React.FC<PreferencesProps> = ({ onClose }) => {
                   Serif
                 </button>
               </div>
+            </div>
+          </section>
+
+          {/* Updates Section */}
+          <section className="preferences-section">
+            <h3 className="section-title">Updates</h3>
+
+            <div className="preference-item">
+              <UpdateButton showVersion={true} />
             </div>
           </section>
 
