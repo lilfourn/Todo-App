@@ -72,23 +72,24 @@ jobs:
             echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
           fi
 
-      - name: Verify and copy signature file
+      - name: Install minisign and sign artifacts
         run: |
+          brew install minisign
+
           TARGET="${{ steps.target.outputs.target }}"
-          SIG_PATH="src-tauri/target/${TARGET}/release/bundle/macos/Todo App.app.tar.gz.sig"
+          TARBALL="src-tauri/target/${TARGET}/release/bundle/macos/Todo App.app.tar.gz"
 
-          echo "Looking for signature file at: ${SIG_PATH}"
-          ls -la "src-tauri/target/${TARGET}/release/bundle/macos/" || echo "Directory doesn't exist"
+          echo "Signing ${TARBALL}"
+          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > /tmp/private.key
+          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" | minisign -S -m "${TARBALL}" -s /tmp/private.key -x "${TARBALL}.sig"
+          rm /tmp/private.key
 
-          if [ -f "${SIG_PATH}" ]; then
-            echo "✅ Found signature file"
-            mkdir -p artifacts
-            cp "${SIG_PATH}" "artifacts/${{ steps.target.outputs.arch }}.sig"
-            ls -la artifacts/
-          else
-            echo "❌ Signature file not found!"
-            exit 1
-          fi
+          echo "✅ Created signature file"
+          ls -la "src-tauri/target/${TARGET}/release/bundle/macos/"
+
+          mkdir -p artifacts
+          cp "${TARBALL}.sig" "artifacts/${{ steps.target.outputs.arch }}.sig"
+          cat "artifacts/${{ steps.target.outputs.arch }}.sig"
 
       - name: Upload signature artifact
         uses: actions/upload-artifact@v4
