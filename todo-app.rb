@@ -2,12 +2,12 @@ cask "todo-app" do
   version "1.0.10"
 
   on_intel do
-    sha256 "6df01c38a85f83ccfc39fdd9174d97fe739ae328902d435ffc1335a109ca4027"
+    sha256 "c92ebec15fdf51b3ae6b4e278161dbc361e11a66145ba02800c4d8105a3f5ec4"
     url "https://github.com/lilfourn/Todo-App/releases/download/v#{version}/Todo.App_#{version}_x64.dmg"
   end
 
   on_arm do
-    sha256 "31439ca04faba45bc1a4891dc1e75908e238fcfd20eb1ae8034b1b2ad9f9795d"
+    sha256 "98ad0c649361a5446f3e72f5aac254de32736815c9e00e110ab6ed64cd1572b6"
     url "https://github.com/lilfourn/Todo-App/releases/download/v#{version}/Todo.App_#{version}_aarch64.dmg"
   end
 
