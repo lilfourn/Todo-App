@@ -151,7 +151,8 @@ body {
 }
 
 .tasks-container {
-  flex: 1;
+  flex: 0 1 auto;
+  max-height: 300px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -182,7 +183,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 0;
+  padding: 40px 0;
   gap: 16px;
   animation: fadeIn 0.5s ease-out;
 }
