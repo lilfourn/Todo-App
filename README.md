@@ -20,10 +20,11 @@ A minimalist Tauri desktop todo application with local storage and elegant anima
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
-- **Desktop**: Tauri 2.x
+- **Desktop**: Tauri 2.9.2 (latest stable)
 - **Backend**: Supabase (Authentication & Database)
 - **Styling**: Custom CSS with animations
-- **Storage**: Tauri Plugin FS
+- **Storage**: Tauri Plugin FS 2.1.3
+- **Plugins**: Dialog 2.1.3, Deep Link 2.0.1
 
 ## Security & Configuration
 

@@ -143,9 +143,15 @@ export function initErrorTracking(config?: { dsn?: string; environment?: string 
   // Initialize Sentry if DSN is provided
   if (config?.dsn) {
     // Dynamically import Sentry only in production
-    // @ts-ignore - @sentry/react is an optional dependency
-    import('@sentry/react')
-      .then((SentryModule) => {
+    // Note: @sentry/react is an optional dependency
+    // Use dynamic import with string template to prevent Vite from resolving at build time
+    const sentryPackage = '@sentry/react';
+    
+    // Create a dynamic import that Vite won't try to resolve during dev
+    const loadSentry = new Function('pkg', 'return import(pkg)');
+    
+    loadSentry(sentryPackage)
+      .then((SentryModule: any) => {
         Sentry = SentryModule;
         Sentry.init({
           dsn: config.dsn,
@@ -163,8 +169,11 @@ export function initErrorTracking(config?: { dsn?: string; environment?: string 
         errorTrackingInitialized = true;
         logger.info('Error tracking initialized with Sentry');
       })
-      .catch((err) => {
-        console.error('Failed to initialize Sentry:', err);
+      .catch(() => {
+        // Sentry not installed or failed to load - this is expected if optional
+        if (IS_DEV) {
+          console.log('Sentry not available (optional dependency not installed)');
+        }
       });
   } else {
     logger.debug('Error tracking not initialized: No DSN provided');

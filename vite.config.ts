@@ -11,16 +11,6 @@ export default defineConfig(({ mode }) => ({
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
-    rollupOptions: {
-      // Handle optional dependencies that may not be installed
-      external: (id) => {
-        // Externalize Sentry if it's not installed (optional dependency)
-        if (id.includes('@sentry/react')) {
-          return true;
-        }
-        return false;
-      },
-    },
     target: 'esnext',
     minify: 'terser',
     // Enable source maps for development, disable for production

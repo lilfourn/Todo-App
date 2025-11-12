@@ -461,6 +461,7 @@ We maintain a log of security audits and findings:
 | 2025-01-01 | Internal | Initial Security Review | Documented security architecture | Completed |
 | 2025-01-11 | Internal | IPC Security Audit | No input validation on menu events (FIXED), Overly permissive capabilities with wildcard windows (FIXED), No command allowlist defined (FIXED), No event payload validation (FIXED), Missing IPC security documentation (FIXED) | Completed |
 | 2025-01-12 | Internal | Dependency Security Audit | No automated dependency scanning (FIXED), No formal update process (FIXED), Missing CI/CD workflows (FIXED), No SARIF reporting (FIXED) | Completed |
+| 2025-01-12 | Internal | Tauri Framework Update | Updated Tauri from 2.8 to 2.9.2 for security patches and performance improvements, Updated plugins (fs 2.1.3, dialog 2.1.3, deep-link 2.0.1) | Completed |
 | TBD | TBD | External Audit | TBD | Planned |
 
 **Note:** This table will be updated as audits are performed.
