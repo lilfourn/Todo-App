@@ -205,11 +205,19 @@ function checkGitTracking() {
 function main() {
   const args = process.argv.slice(2);
   const checkGit = args.includes('--check-git');
-  
+
+  // Skip validation in CI environments (GitHub Actions, etc.)
+  // Env vars are passed via secrets, not .env files
+  if (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true') {
+    info('Running in CI environment - skipping .env validation\n');
+    success('Using environment variables from CI secrets\n');
+    process.exit(0);
+  }
+
   console.log('\n🔍 Validating environment configuration...\n');
-  
+
   let exitCode = 0;
-  
+
   // Check if environment file exists and resolve which one to use
   const envFile = checkEnvFileExists();
   if (!envFile) {
