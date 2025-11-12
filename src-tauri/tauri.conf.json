@@ -1,6 +1,6 @@
 {
   "productName": "Todo App",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "identifier": "com.codebyfourn.todoapp",
   "build": {
     "beforeDevCommand": "npm run dev",

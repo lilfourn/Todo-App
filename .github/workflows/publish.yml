@@ -72,11 +72,29 @@ jobs:
             echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
           fi
 
+      - name: Verify and copy signature file
+        run: |
+          TARGET="${{ steps.target.outputs.target }}"
+          SIG_PATH="src-tauri/target/${TARGET}/release/bundle/macos/Todo App.app.tar.gz.sig"
+
+          echo "Looking for signature file at: ${SIG_PATH}"
+          ls -la "src-tauri/target/${TARGET}/release/bundle/macos/" || echo "Directory doesn't exist"
+
+          if [ -f "${SIG_PATH}" ]; then
+            echo "✅ Found signature file"
+            mkdir -p artifacts
+            cp "${SIG_PATH}" "artifacts/${{ steps.target.outputs.arch }}.sig"
+            ls -la artifacts/
+          else
+            echo "❌ Signature file not found!"
+            exit 1
+          fi
+
       - name: Upload signature artifact
         uses: actions/upload-artifact@v4
         with:
           name: signature-${{ steps.target.outputs.arch }}
-          path: src-tauri/target/${{ steps.target.outputs.target }}/release/bundle/macos/Todo App.app.tar.gz.sig
+          path: artifacts/${{ steps.target.outputs.arch }}.sig
           retention-days: 1
 
   generate-updater-json:
@@ -93,13 +111,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: signature-aarch64
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/macos/
+          path: artifacts/
 
       - name: Download x64 signature
         uses: actions/download-artifact@v4
         with:
           name: signature-x64
-          path: src-tauri/target/x86_64-apple-darwin/release/bundle/macos/
+          path: artifacts/
+
+      - name: Prepare signature files
+        run: |
+          mkdir -p src-tauri/target/aarch64-apple-darwin/release/bundle/macos/
+          mkdir -p src-tauri/target/x86_64-apple-darwin/release/bundle/macos/
+          cp "artifacts/aarch64.sig" "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Todo App.app.tar.gz.sig"
+          cp "artifacts/x64.sig" "src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Todo App.app.tar.gz.sig"
+          echo "✅ Signature files prepared:"
+          ls -la src-tauri/target/aarch64-apple-darwin/release/bundle/macos/
+          ls -la src-tauri/target/x86_64-apple-darwin/release/bundle/macos/
 
       - name: Setup Node
         uses: actions/setup-node@v4
