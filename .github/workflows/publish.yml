@@ -80,8 +80,8 @@ jobs:
           TARBALL="src-tauri/target/${TARGET}/release/bundle/macos/Todo App.app.tar.gz"
 
           echo "Signing ${TARBALL}"
-          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > /tmp/private.key
-          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" | minisign -S -m "${TARBALL}" -s /tmp/private.key -x "${TARBALL}.sig"
+          printf '%s\n' "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > /tmp/private.key
+          printf '%s\n' "${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}" | minisign -S -m "${TARBALL}" -s /tmp/private.key -x "${TARBALL}.sig"
           rm /tmp/private.key
 
           echo "✅ Created signature file"
